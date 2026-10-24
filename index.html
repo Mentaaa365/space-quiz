@@ -356,6 +356,21 @@
       letter-spacing: -.04em;
     }
     .result-score span { color: var(--muted); font-size: 13px; }
+    .result-review { margin-bottom: 25px; text-align: left; }
+    .result-review h3 { margin: 0 0 12px; font-size: 18px; }
+    .review-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+    .review-item {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+      overflow-wrap: anywhere;
+    }
+    .review-item h4 { margin: 0 0 10px; font-size: 14px; line-height: 1.45; }
+    .review-answer { margin: 5px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .review-answer strong { color: var(--ink); }
+    .review-fact { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.5; }
+    .review-empty { margin: 0; color: var(--green); font-size: 14px; line-height: 1.5; }
     .hidden { display: none !important; }
     .footer-note { margin: 16px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
 
@@ -459,6 +474,11 @@
         <h2 id="result-title" tabindex="-1">¡Buen viaje!</h2>
         <p class="result-copy" id="result-copy"></p>
         <div class="result-score"><strong id="final-score"></strong><span>respuestas correctas de 10</span></div>
+        <section class="result-review" aria-labelledby="review-title">
+          <h3 id="review-title">Revisión de la misión</h3>
+          <p class="review-empty hidden" id="review-empty"></p>
+          <ol class="review-list hidden" id="incorrect-review" aria-live="off"></ol>
+        </section>
         <button class="button" id="restart-button" type="button">Volver a jugar <span aria-hidden="true">↻</span></button>
       </div>
     </section>
@@ -541,13 +561,17 @@
     const progressFill = document.querySelector("#progress-fill");
     const progressTrack = document.querySelector("#progress-track");
     const nextButton = document.querySelector("#next-button");
+    const incorrectReview = document.querySelector("#incorrect-review");
+    const reviewEmpty = document.querySelector("#review-empty");
     let current = 0;
     let score = 0;
     let locked = false;
+    let incorrectAnswers = [];
 
     function startQuiz() {
       current = 0;
       score = 0;
+      incorrectAnswers = [];
       scoreCount.textContent = score;
       intro.classList.add("hidden");
       results.classList.add("hidden");
@@ -598,6 +622,14 @@
       if (correct) {
         score += 1;
         scoreCount.textContent = score;
+      } else {
+        incorrectAnswers.push({
+          questionNumber: current + 1,
+          question: item.text,
+          selected: item.options[selected],
+          correct: item.options[item.answer],
+          fact: item.fact
+        });
       }
       feedback.classList.add(correct ? "good" : "bad");
       const icon = document.createElement("span");
@@ -617,6 +649,35 @@
       quiz.classList.add("hidden");
       results.classList.remove("hidden");
       document.querySelector("#final-score").textContent = `${score} / 10`;
+      incorrectReview.replaceChildren();
+      reviewEmpty.classList.toggle("hidden", incorrectAnswers.length > 0);
+      incorrectReview.classList.toggle("hidden", incorrectAnswers.length === 0);
+
+      if (incorrectAnswers.length === 0) {
+        reviewEmpty.textContent = "¡Felicidades! Respondiste correctamente todas las preguntas.";
+      } else {
+        incorrectAnswers.forEach((answer) => {
+          const item = document.createElement("li");
+          item.className = "review-item";
+          const question = document.createElement("h4");
+          question.textContent = `Pregunta ${answer.questionNumber}: ${answer.question}`;
+          const selected = document.createElement("p");
+          selected.className = "review-answer";
+          const selectedLabel = document.createElement("strong");
+          selectedLabel.textContent = "Tu respuesta: ";
+          selected.append(selectedLabel, document.createTextNode(answer.selected));
+          const correct = document.createElement("p");
+          correct.className = "review-answer";
+          const correctLabel = document.createElement("strong");
+          correctLabel.textContent = "Respuesta correcta: ";
+          correct.append(correctLabel, document.createTextNode(answer.correct));
+          const fact = document.createElement("p");
+          fact.className = "review-fact";
+          fact.textContent = answer.fact;
+          item.append(question, selected, correct, fact);
+          incorrectReview.append(item);
+        });
+      }
 
       const outcome = score >= 8
         ? { emoji: "🏆", title: "¡Estás en otra órbita!", copy: "Tu conocimiento espacial es estelar. La próxima misión te espera." }
